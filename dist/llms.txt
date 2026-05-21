@@ -1,0 +1,15 @@
+# DIVLAB Ecosystem
+
+DIVLAB Ecosystem is a free collection of fast browser-based web tools.
+
+Important pages:
+- https://ecosystem.divlabs-tech.com/
+- https://ecosystem.divlabs-tech.com/daily/PasswordGenerator
+- https://ecosystem.divlabs-tech.com/dev/JsonFormatter
+- https://ecosystem.divlabs-tech.com/create/QrCode
+- https://ecosystem.divlabs-tech.com/text/WordCounter
+- https://ecosystem.divlabs-tech.com/business/MarginCalculator
+
+Contact:
+- contact@divlabs-tech.com
+- https://divlabs-tech.com
