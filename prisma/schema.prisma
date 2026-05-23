@@ -1,0 +1,372 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+  output     = "../node_modules/@prisma/client/.prisma/client"
+}
+
+datasource db {
+  provider  = "postgresql" 
+}
+
+model Signup { 
+  id        Int      @id @default(autoincrement())
+  name      String
+  password  String
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model User {
+   id           String         @id @default(cuid())
+  name         String
+  surname       String    @default("")
+  password     String?  @default("")
+  email        String         @unique
+  emailVerified DateTime?
+  image        String?
+  sex         String?
+  location    String?
+  post        String?
+  phone       String?     
+  role         String         @default("user")
+  bio           String?  
+  purchases    Purchase[]
+  socialMedias   socialMedia[]
+  trainer         Trainer?
+  createdAt    DateTime       @default(now())
+  conversation Conversation[] @relation("UserConversation")
+  initiatedNotifications  Notification[]  @relation("initiator")
+  recievedNotifications   Notification[]  @relation("destinator")
+  receiverConversation  Conversation[] @relation("ReceiverConversation")
+  connected    Boolean       @default(false)
+  accounts     Account[]
+  sessions     Session[]
+  following     Follows[]     @relation("follower")
+  trainerSubscriptions TrainerSubscription[] @relation("SubscriptionUser")
+  trainerBlacklistEntries TrainerBlacklist[] @relation("BlacklistUser")
+  sentChatMessages ChatMessage[] @relation("ChatSender")
+  receivedChatMessages ChatMessage[] @relation("ChatReceiver")
+  provider      String?
+  payments Payment[] // un utilisateur a plusieurs paiements ( achats de formations e-books)
+  postalCode String?
+  city    String?
+  country   String?
+}
+
+// Table de jonction explicite pour SQLite
+model Follows {
+  followerId String
+  follower   User    @relation("follower", fields: [followerId], references: [id])
+  followedId String
+  followed   Trainer @relation("followed", fields: [followedId], references: [id])
+
+  @@id([followerId, followedId])
+}
+
+model Notification {
+  id        String     @id @default(cuid())
+  initiatorUserId    String
+  initiator   User    @relation("initiator",fields: [initiatorUserId], references: [id])
+  destinatorUserId    String
+  destinator  User    @relation("destinator",fields: [destinatorUserId], references: [id])
+  description String
+  subject     String
+  type        String
+  newNotif    Boolean @default(true)
+   createdAt    DateTime       @default(now())
+}
+
+
+model Trainer {
+id            String         @id @default(cuid())
+userId        String     @unique
+user          User     @relation(fields: [userId], references: [id])
+profession    String?
+country       String?
+domain                    String?
+course   Course[]
+justification             String?
+justificatifDocument      String?
+identificationPiece       String?
+valid   Boolean   @default(false)
+reject   Boolean   @default(false)
+rejectReason   String?
+followers    Follows[]  @relation("followed")
+subscriptions TrainerSubscription[] @relation("SubscriptionTrainer")
+blacklist TrainerBlacklist[] @relation("BlacklistTrainer")
+}
+
+model TrainerSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  trainerId String   @map("trainer_id")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation("SubscriptionUser", fields: [userId], references: [id], onDelete: Cascade)
+  trainer Trainer @relation("SubscriptionTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trainerId])
+  @@index([trainerId])
+  @@map("subscriptions")
+}
+
+model TrainerBlacklist { 
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  trainerId String   @map("trainer_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation("BlacklistUser", fields: [userId], references: [id], onDelete: Cascade)
+  trainer Trainer @relation("BlacklistTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trainerId])
+  @@index([trainerId])
+  @@map("blacklist")
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  senderId   String   @map("sender_id")
+  receiverId String   @map("receiver_id")
+  content    String   @db.Text
+  mediaUrl   String?  @map("media_url")
+  type       String   @default("text")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  sender   User @relation("ChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ChatReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, senderId, createdAt])
+  @@map("messages")
+}
+
+model socialMedia {
+  id      String      @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id])
+  name    String
+  link    String
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Files {
+  id        Int      @id @default(autoincrement())
+  file      Bytes
+  messageId Int
+  message   Message  @relation("MessageFile", fields: [messageId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+
+model Message {
+  id           Int          @id @default(autoincrement())
+  message      String
+  answer       String
+  files        Files[]      @relation("MessageFile")
+  conversation Conversation @relation("ConversationMessage", fields: [ConversationId], references: [id])
+  ConversationId    Int
+  score        Int
+  createdAt    DateTime     @default(now())
+}
+
+model Conversation {
+  id        Int       @id @default(autoincrement())
+  input     String
+  request   Message[] @relation("ConversationMessage")
+  reqScore  Int
+  archived  Boolean
+  deleted   Boolean
+  warned    Boolean
+  ephemeral Boolean
+  createdAt DateTime  @default(now())
+  user      User      @relation("UserConversation", fields: [userId], references: [email])
+  receiver      User   @relation("ReceiverConversation", fields: [receiverId], references: [email])
+  receiverId    String   @default("chatBot") 
+  userId    String
+  convId    Int    @default(0) 
+
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Payment {
+  id                 String   @id @default(cuid())
+  reference          String   @unique
+  merchantReference  String
+  trxref             String?
+  amount             Int
+  currency           String
+  status             String
+  paymentMethod      String?
+  description        String?
+  metadata           Json?
+  filePath         String?                          // ex: "uploads/epreuves/lepreuve.pdf"
+  fileName         String?  
+  createdAt          DateTime @default(now())
+  user               User?    @relation(fields: [userId], references: [id])
+  userId             String?
+}
+
+model Formation {
+  id          String      @id @default(cuid())
+  title       String   @unique
+  location    String  @default("Inconnu")
+  format      String
+  classe       String   // "free" | "premium"
+  description String?
+  img         String?
+  group       String?
+  category    String?
+  author      String?
+  pages       Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  command_id    String?
+  name          String
+  email         String
+  contact       String?
+  country       String
+  projectType   String   // exemple: "website", "portfolio", etc
+  description   String?
+  budget        String?
+  status        String
+  template      String?
+  sessionId     String?  // si tu veux suivre un user connecté/non connecté
+  createdAt     DateTime @default(now())
+}
+
+model Subscription {
+  id            String   @id @default(cuid())
+  subscription_id String
+  name          String
+  email         String
+  contact       String?
+  country       String?
+  description   String?
+  price        String?
+  status        String
+  sessionId     String?  // si tu veux suivre un user connecté/non connecté
+  createdAt     DateTime @default(now())
+}
+
+// Tables pour les Cours visio en ligne
+
+model Course {
+  id          String      @id @default(cuid())
+  title       String
+  domain      String
+  date_start  DateTime @default(now())
+  date_end    DateTime @default(now())
+  time        Float
+  description String
+  price       Float
+  state       String   @default("upcoming")
+  roomCode    String   
+  trainerId   String
+  trainer     Trainer     @relation(fields: [trainerId], references: [id])
+  createdAt   DateTime @default(now())
+   updatedAt   DateTime? 
+  purchases   Purchase[]
+  slots       CourseSlot[]
+  language    String    @default("Francais")
+  frontCover String?
+  backCover  String?
+   checked     Boolean  @default(false)
+  currency    String    @default("FCFA")
+  rank        Int   @default(1)
+  moderatorActif  Boolean @default(false)
+  reminderSent    Boolean @default(false)
+}
+
+/// Créneaux horaires par jour (formation multi-jours).
+model CourseSlot {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  startsAt  DateTime
+  endsAt    DateTime
+  sortOrder Int      @default(0)
+
+  @@index([courseId])
+}
+
+model Purchase {
+  id            Int      @id @default(autoincrement())
+  userId        String
+  formationId   String
+  accessToken   String   @unique
+  paymentStatus String   @default("pending")
+  presence_start  DateTime  @default(now())
+  presence_end   DateTime   @default(now())
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+  course     Course @relation(fields: [formationId], references: [id])
+}
+
+model CourseLog {
+  id         String   @id @default(cuid())
+
+  courseId   String
+  userId     String?      // nullable si utilisateur non connecté
+  token      String?      // accessToken utilisé
+  role       String       // "participant" | "trainer" | "admin"
+  action     String       // "open" | "join" | "leave"
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([courseId])
+  @@index([userId])
+}
